@@ -728,6 +728,7 @@ class Bishop:
 # wRook_pic = tkinter.PhotoImage(file='whiteRook.png')
 
 master = tkinter.Tk()
+master.mainloop()
 want_to_play = input('Если хотите сыграть, введите +, если нет - любой другой символ: ')
 while want_to_play == '+':
     canvas = tkinter.Canvas()
@@ -742,6 +743,7 @@ while want_to_play == '+':
     no_winner = True
     board = Board()
     board.refresh()
+    #master.mainloop()
     # print_board(board)
     while no_winner:
         print('Ходят', board.current_player_color())
@@ -804,3 +806,4 @@ while want_to_play == '+':
             no_winner = False
 
     want_to_play = input('Если хотите сыграть, введите +, если нет - любой другой символ: ')
+
