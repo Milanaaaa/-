@@ -1,0 +1,806 @@
+import tkinter
+
+WHITE = 'белые'
+BLACK = 'чёрные'
+WIDTH = 8
+HEIGHT = 8
+
+
+# Удобная функция для вычисления цвета противника
+def opponent(color):
+    if color == WHITE:
+        return BLACK
+    else:
+        return WHITE
+
+
+def print_board(board):  # Распечатать доску в текстовом виде (см. скриншот)
+    letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    print('     +----+----+----+----+----+----+----+----+')
+    for row in range(7, -1, -1):
+        print(' ', row, end='  ')
+        for col in range(8):
+            symbol = board.field[row][col]
+            if symbol is None:
+                symbol = '  '
+            print('|', symbol, end=' ')
+        print('|')
+        print('     +----+----+----+----+----+----+----+----+')
+    print(end='        ')
+    for col in range(8):
+        print(col, end='    ')
+    print()
+
+
+def main():
+    # Создаём шахматную доску
+    board = Board()
+    # Цикл ввода команд игроков
+    while True:
+        # Выводим положение фигур на доске
+        print_board(board)
+        # Подсказка по командам
+        print('Команды:')
+        print('    exit                               -- выход')
+        print('    move <row> <col> <row1> <row1>     -- ход из клетки (row, col)')
+        print('                                          в клетку (row1, col1)')
+        # Выводим приглашение игроку нужного цвета
+        if board.current_player_color() == WHITE:
+            print('Ход белых:')
+        else:
+            print('Ход чёрных:')
+        command = input()
+        if command == 'exit':
+            break
+        move_type, row, col, row1, col1 = command.split()
+        row, col, row1, col1 = int(row), int(col), int(row1), int(col1)
+        if board.move_piece(row, col, row1, col1):
+            print('Ход успешен')
+        else:
+            print('Координаты некорректы! Попробуйте другой ход!')
+
+
+def correct_coords(row, col):
+    '''Функция проверяет, что координаты (row, col) лежат
+    внутри доски'''
+    return 0 <= row < 8 and 0 <= col < 8
+
+
+class Board:
+    def __init__(self):
+        self.color = WHITE
+        self.field = []
+        for row in range(8):
+            self.field.append([None] * 8)
+        self.field[0] = [Rook(WHITE), Knight(WHITE), Bishop(WHITE), Queen(WHITE),
+                         King(WHITE), Bishop(WHITE), Knight(WHITE), Rook(WHITE)]
+        self.field[1] = [Pawn(WHITE), Pawn(WHITE), Pawn(WHITE), Pawn(WHITE),
+                         Pawn(WHITE), Pawn(WHITE), Pawn(WHITE), Pawn(WHITE)]
+        self.field[6] = [Pawn(BLACK), Pawn(BLACK), Pawn(BLACK), Pawn(BLACK),
+                         Pawn(BLACK), Pawn(BLACK), Pawn(BLACK), Pawn(BLACK)]
+        self.field[7] = [Rook(BLACK), Knight(BLACK), Bishop(BLACK), Queen(BLACK),
+                         King(BLACK), Bishop(BLACK), Knight(BLACK), Rook(BLACK)]
+
+    def current_player_color(self):
+        return self.color
+
+    def cell(self, row, col):
+        '''Возвращает строку из двух символов. Если в клетке (row, col)
+        находится фигура, символы цвета и фигуры. Если клетка пуста,
+        то два пробела.'''
+        piece = self.field[row][col]
+        if piece is None:
+            return '  '
+        color = piece.get_color()
+        c = 'w' if color == WHITE else 'b'
+        return c + piece.char()
+
+    def get_piece(self, row, col):
+        if correct_coords(row, col):
+            return self.field[row][col]
+        else:
+            return None
+
+    def move_piece(self, row, col, row1, col1):
+        '''Переместить фигуру из точки (row, col) в точку (row1, col1).
+        Если перемещение возможно, метод выполнит его и вернёт True.
+        Если нет --- вернёт False'''
+
+        if not correct_coords(row, col) or not correct_coords(row1, col1):
+            return False
+        if row == row1 and col == col1:
+            return False  # нельзя пойти в ту же клетку
+        piece = self.field[row][col]
+        if piece is None:
+            return False
+        if piece.get_color() != self.color:
+            print(self.color, 'cur_p_c')
+            return False
+        if self.field[row1][col1] is None:
+            if not piece.can_move(self, row, col, row1, col1):
+                return False
+        elif self.field[row1][col1].get_color() == opponent(piece.get_color()):
+            if not piece.can_attack(self, row, col, row1, col1):
+                return False
+        else:
+            return False
+        self.field[row][col] = None  # Снять фигуру.
+        self.field[row1][col1] = piece  # Поставить на новое место.
+        self.color = opponent(self.color)
+        return True
+
+    def move_and_promote_pawn(self, row, col, row1, col1, char):
+        may = True
+        if not self.field[row][col].can_move(self, row, col, row1, col1) \
+                or type(self.field[row][col]) != Pawn:
+            may = False
+        color = self.field[row][col].get_color()
+        if self.field[row1][col1] is not None:
+            if self.field[row][col].can_attack(self.field, row, col, row1, col1) and \
+                            self.field[row1][col1].get_color() != color:
+                may = True
+            else:
+                may = False
+        if may:
+            if char == 'Q':
+                new_char = Queen(color)
+            elif char == 'R':
+                new_char = Rook(color)
+            elif char == 'B':
+                new_char = Bishop(color)
+            elif char == 'N':
+                new_char = Knight(color)
+            self.field[row1][col1] = new_char
+            self.field[row][col] = None
+            self.color = opponent(self.color)
+            return True
+        return False
+
+    def is_under_attack(self, row, col, color):
+        danger = False
+        for r in self.field:
+            for f in r:
+                if f is not None and f.can_move(row, col) and f.get_color() == color:
+                    danger = True
+        return danger
+
+    def castling0(self):
+        if self.color == BLACK:
+            canb = True
+            if type(self.field[7][0]) != Rook or type(self.field[7][4]) != King:
+                canb = False
+            if canb:
+                if self.field[7][0].moved or self.field[7][4].moved:
+                    canb = False
+            if canb:
+                if self.field[7][0].get_color() != self.field[7][4].get_color():
+                    canb = False
+            if canb:
+                if self.field[7][1] is not None or self.field[7][2] is not None:
+                    canb = False
+                elif self.field[7][3] is not None:
+                    canb = False
+            if canb:
+                self.field[7][0].moved = True
+                self.field[7][4].moved = True
+                kng = self.field[7][4]
+                self.field[7][4] = None  # Снять фигуру.
+                self.field[7][2] = kng  # Поставить на новое место.
+                rk = self.field[7][0]
+                self.field[7][0] = None  # Снять фигуру.
+                self.field[7][3] = rk
+                self.color = opponent(self.color)
+            return canb
+
+        elif self.color == WHITE:
+            canw = True
+            if type(self.field[0][0]) != Rook or type(self.field[0][4]) != King:
+                canw = False
+            if canw:
+                if self.field[0][0].moved or self.field[0][4].moved:
+                    canw = False
+            if canw:
+                if self.field[0][0].get_color() != self.field[0][4].get_color():
+                    canw = False
+            if canw:
+                if self.field[0][1] is not None or self.field[0][2] is not None:
+                    canw = False
+                if self.field[0][3] is not None:
+                    canw = False
+            if canw:
+                self.field[0][0].moved = True
+                self.field[0][4].moved = True
+                kng = self.field[0][4]
+                self.field[0][4] = None
+                self.field[0][2] = kng
+                rk = self.field[0][0]
+                self.field[0][0] = None
+                self.field[0][3] = rk
+                self.color = opponent(self.color)
+            return canw
+
+    def castling7(self):
+        if self.color == BLACK:
+            canb = True
+            if type(self.field[7][7]) != Rook or type(self.field[7][4]) != King:
+                canb = False
+            if canb:
+                if self.field[7][7].moved or self.field[7][4].moved:
+                    canb = False
+            if canb:
+                if self.field[7][7].get_color() != self.field[7][4].get_color():
+                    canb = False
+            if canb:
+                if self.field[7][5] is not None or self.field[7][6] is not None:
+                    canb = False
+            if canb:
+                self.field[7][4].moved = True
+                self.field[7][7].moved = True
+                kng = self.field[7][4]
+                self.field[7][4] = None  # Снять фигуру.
+                self.field[7][6] = kng  # Поставить на новое место.
+                rk = self.field[7][7]
+                self.field[7][7] = None  # Снять фигуру.
+                self.field[7][5] = rk
+                self.color = opponent(self.color)
+            return canb
+
+        elif self.color == WHITE:
+            canw = True
+            if type(self.field[0][7]) != Rook or type(self.field[0][4]) != King:
+                canw = False
+            if canw:
+                if self.field[0][7].moved or self.field[0][4].moved:
+                    canw = False
+            if canw:
+                if self.field[0][7].get_color() != self.field[0][4].get_color():
+                    canw = False
+            if canw:
+                if self.field[0][5] is not None or self.field[0][6] is not None:
+                    canw = False
+            if canw:
+                self.field[0][7].moved = True
+                self.field[0][4].moved = True
+                kng = self.field[0][4]
+                self.field[0][4] = None
+                self.field[0][6] = kng
+                rk = self.field[0][7]
+                self.field[0][7] = None
+                self.field[0][5] = rk
+                self.color = opponent(self.color)
+            return canw
+
+    def refresh(self):
+
+        for r in range(len(self.field)):  # прохожусь
+            for c in range(len(self.field[r])):
+                if type(self.field[r][c]) == Rook:
+                    if self.field[r][c].get_color() == WHITE:
+                        wRook_pic = tkinter.PhotoImage(file='whiteRook.png')
+                        w_rook = canvas.create_image((c * 50, r * 50), image=wRook_pic, anchor='nw')
+                    elif self.field[r][c].get_color() == BLACK:
+                        bRook_pic = tkinter.PhotoImage(file='blackRook.png')
+                        b_rook = canvas.create_image((c * 50, r * 50), image=bRook_pic, anchor='nw')
+                elif type(self.field[r][c]) == Knight:
+                    if self.field[r][c].get_color() == WHITE:
+                        wKnight_pic = tkinter.PhotoImage(file='whiteKnight.png')
+                        w_knight = canvas.create_image((c * 50, r * 50), image=wKnight_pic, anchor='nw')
+                    elif self.field[r][c].get_color() == BLACK:
+                        bKnight_pic = tkinter.PhotoImage(file='blackKnight.png')
+                        b_knight = canvas.create_image((c * 50, r * 50), image=bKnight_pic, anchor='nw')
+                elif type(self.field[r][c]) == Bishop:
+                    if self.field[r][c].get_color() == WHITE:
+                        wBishop_pic = tkinter.PhotoImage(file='whiteBishop.png')
+                        w_bishop = canvas.create_image((c * 50, r * 50), image=wBishop_pic, anchor='nw')
+                    elif self.field[r][c].get_color() == BLACK:
+                        bBishop_pic = tkinter.PhotoImage(file='blackBishop.png')
+                        b_bishop = canvas.create_image((c * 50, r * 50), image=bBishop_pic, anchor='nw')
+                elif type(self.field[r][c]) == Queen:
+                    if self.field[r][c].get_color() == WHITE:
+                        wQueen_pic = tkinter.PhotoImage(file='whiteQueen.png')
+                        w_queen = canvas.create_image((c * 50, r * 50), image=wQueen_pic, anchor='nw')
+                    elif self.field[r][c].get_color() == BLACK:
+                        bQueen_pic = tkinter.PhotoImage(file='blackQueen.png')
+                        b_queen = canvas.create_image((c * 50, r * 50), image=bQueen_pic, anchor='nw')
+                elif type(self.field[r][c]) == King:
+                    if self.field[r][c].get_color() == WHITE:
+                        wKing_pic = tkinter.PhotoImage(file='whiteKing.png')
+                        w_king = canvas.create_image((c * 50, r * 50), image=wKing_pic, anchor='nw')
+                    elif self.field[r][c].get_color() == BLACK:
+                        bKing_pic = tkinter.PhotoImage(file='blackKing.png')
+                        b_king = canvas.create_image((c * 50, r * 50), image=bKing_pic, anchor='nw')
+                elif type(self.field[r][c]) == Pawn:
+                    if self.field[r][c].get_color() == WHITE:
+                        wPawn_pic = tkinter.PhotoImage(file='whitePawn.png')
+                        w_pawn = canvas.create_image((c * 50, r * 50), image=wPawn_pic, anchor='nw')
+                    elif self.field[r][c].get_color() == BLACK:
+                        bPawn_pic = tkinter.PhotoImage(file='blackPawn.png')
+                        b_pawn = canvas.create_image((c * 50, r * 50), image=bPawn_pic, anchor='nw')
+
+
+class Rook:
+    def __init__(self, color):
+        self.color = color
+        self.moved = False
+
+    def get_color(self):
+        return self.color
+
+    def char(self):
+        return 'R'
+
+    def can_move(self, board, row, col, row1, col1):
+        # Невозможно сделать ход в клетку, которая не лежит в том же ряду
+        # или столбце клеток.
+        if row == row1 and col == col1:
+            return False
+
+        if row != row1 and col != col1:
+            return False
+
+        step = 1 if (row1 >= row) else -1
+        for r in range(row + step, row1, step):
+            # Если на пути по горизонтали есть фигура
+            if not (board.get_piece(r, col) is None):
+                return False
+
+        step = 1 if (col1 >= col) else -1
+        for c in range(col + step, col1, step):
+            # Если на пути по вертикали есть фигура
+            if not (board.get_piece(row, c) is None):
+                return False
+
+        self.moved = True
+        return True
+
+    def can_attack(self, board, row, col, row1, col1):
+        return self.can_move(board, row, col, row1, col1)
+
+    def __repr__(self):
+        if self.color == WHITE:
+            return '♜ '
+        elif self.color == BLACK:
+            return '♖ '
+
+
+class Pawn:
+    def __init__(self, color):
+        self.color = color
+
+    def get_color(self):
+        return self.color
+
+    def char(self):
+        return 'P'
+
+    def can_move(self, board, row, col, row1, col1):
+        # Пешка может ходить только по вертикали
+        # "взятие на проходе" не реализовано
+        if row == row1 and col == col1:
+            return False
+
+        if col != col1:
+            return False
+
+        # Пешка может сделать из начального положения ход на 2 клетки
+        # вперёд, поэтому поместим индекс начального ряда в start_row.
+        if self.color == WHITE:
+            direction = 1
+            start_row = 1
+        else:
+            direction = -1
+            start_row = 6
+
+        # ход на 1 клетку
+        if row + direction == row1:
+            return True
+
+        # ход на 2 клетки из начального положения
+        if (row == start_row and row + 2 * direction == row1 and board.field[
+                row + direction][col] is None):
+            return True
+
+        return False
+
+    def can_attack(self, board, row, col, row1, col1):
+        can = False
+        if abs(row - row1) == 2:
+            if board.field[row][col].color == WHITE:
+                if board.field[row + 1][col] is None:
+                    if board.field[row + 2][col] is None or board.field[row + 2][col].color == BLACK:
+                        can = True
+            elif board.field[row][col].color == BLACK:
+                if board.field[row - 1][col] is None:
+                    if board.field[row - 2][col] is None or board.field[row - 2][col].color == WHITE:
+                        can = True
+        elif abs(row - row1) == 1:
+            if board.field[row][col].color == WHITE:
+                if board.field[row + 1][col] is None or board.field[row + 1][col].color == BLACK:
+                    can = True
+            elif board.field[row][col].color == BLACK:
+                if board.field[row - 1][col] is None or board.field[row - 1][col].color == WHITE:
+                    can = True
+        return can
+
+    def __repr__(self):
+        if self.color == WHITE:
+            return '♙'
+        elif self.color == BLACK:
+            return '♟'
+
+
+class Knight:
+    def __init__(self, color):
+        self.color = color
+
+    def get_color(self):
+        return self.color
+
+    def char(self):
+        return 'N'  # kNight, буква 'K' уже занята королём
+
+    def can_move(self, board, row, col, row1, col1):
+        can = True
+        if row == row1 and col == col1:
+            can = False
+        elif not (0 <= row1 < 8 and 0 <= col1 < 8):
+            can = False
+        if can:
+            if row + 2 == row1 and col - 1 == col1:
+                can = True
+            elif row + 2 == row1 and col + 1 == col1:
+                can = True
+            elif row + 1 == row1 and col + 2 == col1:
+                can = True
+            elif row - 1 == row1 and col + 2 == col1:
+                can = True
+            elif row - 2 == row1 and col + 1 == col1:
+                can = True
+            elif row - 2 == row1 and col - 1 == col1:
+                can = True
+            elif row - 1 == row1 and col - 2 == col1:
+                can = True
+            elif row + 1 == row1 and col - 2 == col1:
+                can = True
+            else:
+                can = False
+        return can
+
+    def can_attack(self, board, row, col, row1, col1):
+        return self.can_move(board, row, col, row1, col1)
+
+    def __repr__(self):
+        if self.color == WHITE:
+            return '♘'
+        elif self.color == BLACK:
+            return '♞'
+
+
+class King:
+    def __init__(self, color):
+        self.color = color
+        self.moved = False
+
+    def get_color(self):
+        return self.color
+
+    def char(self):
+        return 'K'
+
+    def can_move(self, board, row, col, row1, col1):
+        can = True
+        if row == row1 and col == col1:
+            can = False
+
+        if 0 <= row1 < 8 and 0 <= col1 < 8 and abs(
+                        row - row1) <= 1 and abs(col - col1) <= 1:
+            can = True
+        else:
+            can = False
+        if can:
+            self.moved = True
+        return can
+
+    def can_attack(self, board, row, col, row1, col1):
+        return self.can_move(board, row, col, row1, col1)
+
+    def __repr__(self):
+        if self.color == WHITE:
+            return '♔'
+        elif self.color == BLACK:
+            return '♚'
+
+
+class Queen:
+    '''Класс ферзя. Пока что заглушка, которая может ходить в любую клетку.'''
+
+    def __init__(self, color):
+        self.color = color
+
+    def get_color(self):
+        return self.color
+
+    def can_move(self, board, row, col, row1, col1):
+        can = True
+
+        if not (0 <= row1 < 8 and 0 <= col1 < 8) or not (0 <= row < 8 and 0 <= col < 8):
+            can = False
+
+        if row == row1 and col == col1:
+            can = False
+
+        if can:
+            if row1 - row == col1 - col:
+                can = True
+            elif row1 + col1 == row + col:
+                can = True
+            elif row == row1:
+                can = True
+            elif col == col1:
+                can = True
+            else:
+                can = False
+
+        if can:
+            m_c = board.field[row][col].get_color()
+            if row == row1 and col < col1:
+                t_col = col
+                while t_col != col1 and can and 0 <= t_col < 8:
+                    t_col += 1
+                    if board.field[row1][t_col] is not None:
+                        if board.field[row1][t_col].get_color() != m_c and t_col == col1 and can:
+                            can = True
+                        else:
+                            can = False
+            elif row == row1 and col > col1:
+                t_col = col
+                while t_col != col1 and can and 0 <= t_col < 8:
+                    t_col -= 1
+                    if board.field[row1][t_col] is not None:
+                        if board.field[row1][t_col].get_color() != m_c and t_col == col1 and can:
+                            can = True
+                        else:
+                            can = False
+            elif col == col1 and row < row1:
+                t_row = row
+                while t_row != row1 and can and 0 <= t_row < 8:
+                    t_row += 1
+                    if board.field[t_row][col1] is not None:
+                        if board.field[t_row][col1].get_color() != m_c and t_row == row1 and can:
+                            can = True
+                        else:
+                            can = False
+            elif col == col1 and row > row1:
+                t_row = row
+                while t_row != row1 and can and 0 <= t_row < 8:
+                    t_row -= 1
+                    if board.field[t_row][col1] is not None:
+                        if board.field[t_row][col1].get_color() != m_c \
+                                and t_row == row1 and can:
+                            can = True
+                        else:
+                            can = False
+            elif row1 - row == col1 - col and row1 > row and col1 > col:
+                t_row = row
+                t_col = col
+                while (t_row != row1 or t_col != col1) and can and 0 \
+                        <= t_row < 8 and 0 <= t_col < 8:
+                    t_row += 1
+                    t_col += 1
+                    if board.field[t_row][t_col] is not None:
+                        if board.field[t_row][t_col].get_color() != m_c \
+                                and t_row == row1 and t_col == col1 and can:
+                            can = True
+                        else:
+                            can = False
+
+            elif row1 - row == col1 - col and row1 < row and col1 < col:
+                t_row = row
+                t_col = col
+                while (t_row != row1 or t_col != col1) and can and 0 \
+                        <= t_row < 8 and 0 <= t_col < 8:
+                    t_row -= 1
+                    t_col -= 1
+                    if board.field[t_row][t_col] is not None:
+                        if board.field[t_row][t_col].get_color() != m_c \
+                                and t_row == row1 and t_col == col1 and can:
+                            can = True
+                        else:
+                            can = False
+
+            elif row1 + col1 == row + col and row1 > row and col1 < col:
+                t_row = row
+                t_col = col
+                # print(row1, col1, end='')
+
+                while (t_row != row1 or t_col != col1) and can and 0 \
+                        <= t_row < 8 and 0 <= t_col < 8:
+                    t_row += 1
+                    t_col -= 1
+                    if board.field[t_row][t_col] is not None:
+                        if board.field[t_row][t_col].get_color() != m_c \
+                                and t_row == row1 and t_col == col1:
+                            can = True
+                        else:
+                            can = False
+
+            elif row1 + col1 == row + col and row1 < row and col1 > col:
+                t_row = row
+                t_col = col
+                while (t_row != row1 or t_col != col1) and can and 0 \
+                        <= t_row < 8 and 0 <= t_col < 8:
+                    # print(t_row, t_col)
+                    t_row -= 1
+                    t_col += 1
+                    if board.field[t_row][t_col] is not None:
+                        if board.field[t_row][t_col].get_color() != m_c \
+                                and t_row == row1 and t_col == col1 and can:
+                            can = True
+                        else:
+                            can = False
+
+        return can
+
+    def char(self):
+        return 'Q'
+
+    def __repr__(self):
+        if self.color == WHITE:
+            return '♕'
+        elif self.color == BLACK:
+            return '♛'
+
+    def can_attack(self, board, row, col, row1, col1):
+        return self.can_move(board, row, col, row1, col1)
+
+
+class Bishop:
+    '''Класс слона. Пока что заглушка, которая может ходить в любую клетку.'''
+
+    def __init__(self, color):
+        self.color = color
+
+    def get_color(self):
+        return self.color
+
+    def char(self):
+        return 'B'
+
+    def can_move(self, board, row, col, row1, col1):
+        can = True
+        if row == row1 and col == col1:
+            can = False
+        elif not (0 <= row1 < 8 and 0 <= col1 < 8):
+            can = False
+
+        if can:
+            if row1 - row == col1 - col:
+                can = True
+            elif row1 + col1 == row + col:
+                can = True
+            else:
+                can = False
+        if can:
+            t_row = row
+            if t_row < row1:
+                row_differ = 1
+            else:
+                row_differ = - 1
+
+            t_col = col
+            if t_col < col1:
+                col_differ = 1
+            else:
+                col_differ = - 1
+
+            t_row += row_differ
+            t_col += col_differ
+
+            while t_row != row1 or t_col != col1:
+                if board.field[t_row][t_col] is not None:
+                    can = False
+                t_row += row_differ
+                t_col += col_differ
+
+        return can
+
+    def can_attack(self, board, row, col, row1, col1):
+        return self.can_move(board, row, col, row1, col1)
+
+    def __repr__(self):
+        if self.color == WHITE:
+            return '♗'
+        elif self.color == BLACK:
+            return '♝'
+
+
+# bBishop_pic = tkinter.PhotoImage(file='blackBishop.png')
+# bKing_pic = tkinter.PhotoImage(file='blackKing.png')
+# bKnight_pic = tkinter.PhotoImage(file='blackKnight.png')
+# bPawn_pic = tkinter.PhotoImage(file='blackPawn.png')
+# bQueen_pic = tkinter.PhotoImage(file='blackQueen.png')
+# bRook_pic = tkinter.PhotoImage(file='blackRook.png')
+# wBishop_pic = tkinter.PhotoImage(file='whiteBishop.png')
+# wKing_pic = tkinter.PhotoImage(file='whiteKing.png')
+# wKnight_pic = tkinter.PhotoImage(file='whiteKnight.png')
+# wPawn_pic = tkinter.PhotoImage(file='whitePawn.png')
+# wQueen_pic = tkinter.PhotoImage(file='whiteQueen.png')
+# wRook_pic = tkinter.PhotoImage(file='whiteRook.png')
+
+master = tkinter.Tk()
+want_to_play = input('Если хотите сыграть, введите +, если нет - любой другой символ: ')
+while want_to_play == '+':
+    canvas = tkinter.Canvas()
+    canvas.delete('all')
+    #master = tkinter.Tk()
+    canvas = tkinter.Canvas(master, bg='#FFFFFF', width=400, height=400)
+    label = tkinter.Label(master, text="Найди выход")
+    label.pack()
+    for i in range(8):
+        canvas.create_line((0, i * 50), (WIDTH, i * 50), fill='black')
+        canvas.create_line((i * 50, 0), (i * 50, HEIGHT), fill='black')
+    no_winner = True
+    board = Board()
+    board.refresh()
+    # print_board(board)
+    while no_winner:
+        print('Ходят', board.current_player_color())
+        usual_hod = True
+        hod = input('Введите "0", если хотите сделать рокировку с ладьей из 0 колонки,\n'
+                    '"7", если хотите сделать рокировку с ладьей из 7 колонки,\n'
+                    'в противном случае - любой другой символ: ')
+        if hod == '0' or hod == '7':
+            if hod == '0':
+                board.castling0()
+            else:
+                board.castling7()
+            usual_hod = False
+
+        if usual_hod:
+            start_coords = input('Введите начальное положение фигуры в формате'
+                                 ' "номер строки:номер колонки": ')
+            end_coords = input(
+                'Введите поле, в которое вы хотите переставить фигуру '
+                'в формате "номер строки:номер колонки": ')
+
+            if type(board.field[int(start_coords.split(':')[0])][
+                        int(start_coords.split(':')[1])]) == Pawn:
+                if (board.field[int(start_coords.split(':')[0])][
+                        int(start_coords.split(':')[1])].color == WHITE and
+                            start_coords.split(':')[0] == '6') or (
+                                board.field[int(start_coords.split(':')[0])][
+                                    int(start_coords.split(':')[1])].color == BLACK and
+                                start_coords.split(':')[0] == '1'):
+                    if input(
+                            'Введите "+", если хотите ли вы превратить пешку '
+                            'в другую фигуру, "-" - если нет: ') == '+':
+                        ch = input(
+                            'Введите перснажа, в которого вы хотите превратить пешку, \n'
+                            'Q обозначает ферзя, R — ладью, B — слона, N — коня: ')
+                        board.move_and_promote_pawn(int(start_coords.split(':')[0]),
+                                                    int(start_coords.split(':')[1]),
+                                                    int(end_coords.split(':')[0]),
+                                                    int(end_coords.split(':')[1]), ch)
+                        usual_hod = False
+            if usual_hod:
+                board.move_piece(int(start_coords.split(':')[0]), int(start_coords.split(':')[1]),
+                                 int(end_coords.split(':')[0]), int(end_coords.split(':')[1]))
+
+        print_board(board)
+
+        bK = False
+        wK = False
+        for r in range(8):
+            for c in range(8):
+                if type(board.field[r][c]) == King and board.field[r][c].color == WHITE:
+                    wK = True
+                elif type(board.field[r][c]) == King and board.field[r][c].color == BLACK:
+                    bK = True
+        if not bK:
+            print('Белые победили!')
+            no_winner = False
+        elif not wK:
+            print('Чёрные победили!')
+            no_winner = False
+
+    want_to_play = input('Если хотите сыграть, введите +, если нет - любой другой символ: ')
