@@ -789,6 +789,22 @@ def prerare_and_start():
 def key(event):
     print("pressed", repr(event.char))
 
+
+# def callback(event):
+#     global board, x1, y1
+#     print("clicked at", event.x, event.y)
+#     x1 = event.x // 50
+#     y1 = event.y // 50
+#
+#
+# def on_mouse_release(event):
+#     global board, x2, y2
+#     print("back at", event.x, event.y)
+#     x2 = event.x // 50
+#     y2 = event.y // 50
+
+
+
 def get_boards_by_screen_coords(screen_x, screen_y):
     return screen_x // cell_size, screen_y // cell_size
 
@@ -801,12 +817,23 @@ def on_mouse_press(event):
     prev_click_coords = (board_row, board_col)
     print(prev_click_coords, ' on_mouse_press')
 
+
+# def on_mouse_move(event):
+#     if draggable_object:
+#         global prev_mouse_position
+#         mouse_delta_x = event.x - prev_mouse_position[0]
+#         mouse_delta_y = event.y - prev_mouse_position[1]
+#         canvas.move(figure, mouse_delta_x, mouse_delta_y)
+#         prev_mouse_position = (event.x, event.y)
+
+
 def on_mouse_release(event):
     global new_click_coords
     board_row = event.y // cell_size
     board_col = event.x // cell_size
     new_click_coords = (board_row, board_col)
     print(new_click_coords, 'on_mouse_release')
+
 
 bBishop_pic = tkinter.PhotoImage(file='blackBishop.png')
 bKing_pic = tkinter.PhotoImage(file='blackKing.png')
@@ -826,22 +853,20 @@ board = Board()
 board.refresh()  # обновление положения картинок
 restart.pack()
 prerare_and_start()
+canvas.pack()
 no_winner = True
 while no_winner:
-
     prev_click_coords = None
     new_click_coords = None
 
-    print(canvas.bind("<ButtonPress-1>", on_mouse_press))
-    print(prev_click_coords, 'нажали сюда')
-    # figure = board.field[prev_click_coords[0]][prev_click_coords[1]]
-    # print(canvas.bind("<B1-Motion>", on_mouse_move))
-    print(canvas.bind("<ButtonRelease-1>", on_mouse_release))
-    print(new_click_coords, 'отжали тут')
-    board.move_piece(prev_click_coords[0], prev_click_coords[1], new_click_coords[0], new_click_coords[1])
+    canvas.bind("<ButtonPress-1>", on_mouse_press)
+    canvas.bind("<ButtonRelease-1>", on_mouse_release)
+    if prev_click_coords is not None and new_click_coords is not None:
+        print(prev_click_coords, 'нажали сюда')
+        print(new_click_coords, 'отжали тут')
+        board.move_piece(prev_click_coords[0], prev_click_coords[1], new_click_coords[0], new_click_coords[1])
 
     board.refresh()  # обновление положения картинок
-    master.mainloop()
     bK = False
     wK = False
     for r in range(8):
@@ -856,3 +881,5 @@ while no_winner:
     elif not wK:
         print('Чёрные победили!')
         no_winner = False
+master.mainloop()
+
