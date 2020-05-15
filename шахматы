@@ -41,7 +41,6 @@ def main():
     while True:
         # Выводим положение фигур на доске
         print_board(board)
-        # Подсказка по командам
         print('Команды:')
         print('    exit                               -- выход')
         print('    move <row> <col> <row1> <row1>     -- ход из клетки (row, col)')
@@ -81,37 +80,50 @@ class Board:
         self.field[7] = [Rook(BLACK), Knight(BLACK), Bishop(BLACK), Queen(BLACK),
                          King(BLACK), Bishop(BLACK), Knight(BLACK), Rook(BLACK)]
 
+    def refresh(self):
         for r in range(len(self.field)):  # прохожусь
             for c in range(len(self.field[r])):
                 if type(self.field[r][c]) == Rook:
                     if self.field[r][c].get_color() == WHITE:
+                        wRook_pic = tkinter.PhotoImage(file='whiteRook.png')
                         w_rook = canvas.create_image((c * 50, r * 50), image=wRook_pic, anchor='nw')
                     elif self.field[r][c].get_color() == BLACK:
+                        bRook_pic = tkinter.PhotoImage(file='blackRook.png')
                         b_rook = canvas.create_image((c * 50, r * 50), image=bRook_pic, anchor='nw')
                 elif type(self.field[r][c]) == Knight:
                     if self.field[r][c].get_color() == WHITE:
+                        wKnight_pic = tkinter.PhotoImage(file='whiteKnight.png')
                         w_knight = canvas.create_image((c * 50, r * 50), image=wKnight_pic, anchor='nw')
                     elif self.field[r][c].get_color() == BLACK:
+                        bKnight_pic = tkinter.PhotoImage(file='blackKnight.png')
                         b_knight = canvas.create_image((c * 50, r * 50), image=bKnight_pic, anchor='nw')
                 elif type(self.field[r][c]) == Bishop:
                     if self.field[r][c].get_color() == WHITE:
+                        wBishop_pic = tkinter.PhotoImage(file='whiteBishop.png')
                         w_bishop = canvas.create_image((c * 50, r * 50), image=wBishop_pic, anchor='nw')
                     elif self.field[r][c].get_color() == BLACK:
+                        bBishop_pic = tkinter.PhotoImage(file='blackBishop.png')
                         b_bishop = canvas.create_image((c * 50, r * 50), image=bBishop_pic, anchor='nw')
                 elif type(self.field[r][c]) == Queen:
                     if self.field[r][c].get_color() == WHITE:
+                        wQueen_pic = tkinter.PhotoImage(file='whiteQueen.png')
                         w_queen = canvas.create_image((c * 50, r * 50), image=wQueen_pic, anchor='nw')
                     elif self.field[r][c].get_color() == BLACK:
+                        bQueen_pic = tkinter.PhotoImage(file='blackQueen.png')
                         b_queen = canvas.create_image((c * 50, r * 50), image=bQueen_pic, anchor='nw')
                 elif type(self.field[r][c]) == King:
                     if self.field[r][c].get_color() == WHITE:
+                        wKing_pic = tkinter.PhotoImage(file='whiteKing.png')
                         w_king = canvas.create_image((c * 50, r * 50), image=wKing_pic, anchor='nw')
                     elif self.field[r][c].get_color() == BLACK:
+                        bKing_pic = tkinter.PhotoImage(file='blackKing.png')
                         b_king = canvas.create_image((c * 50, r * 50), image=bKing_pic, anchor='nw')
                 elif type(self.field[r][c]) == Pawn:
                     if self.field[r][c].get_color() == WHITE:
+                        wPawn_pic = tkinter.PhotoImage(file='whitePawn.png')
                         w_pawn = canvas.create_image((c * 50, r * 50), image=wPawn_pic, anchor='nw')
                     elif self.field[r][c].get_color() == BLACK:
+                        bPawn_pic = tkinter.PhotoImage(file='blackPawn.png')
                         b_pawn = canvas.create_image((c * 50, r * 50), image=bPawn_pic, anchor='nw')
 
     def current_player_color(self):
@@ -312,8 +324,6 @@ class Rook:
         return 'R'
 
     def can_move(self, board, row, col, row1, col1):
-        # Невозможно сделать ход в клетку, которая не лежит в том же ряду
-        # или столбце клеток.
         if row == row1 and col == col1:
             return False
 
@@ -356,8 +366,6 @@ class Pawn:
         return 'P'
 
     def can_move(self, board, row, col, row1, col1):
-        # Пешка может ходить только по вертикали
-        # "взятие на проходе" не реализовано
         if row == row1 and col == col1:
             return False
 
@@ -770,7 +778,6 @@ def prerare_and_start():
             y1 += cell_size
             x2 = x1 + cell_size - 1
             y2 = y1 + cell_size - 1
-    board = Board()
 
     config_string = 'Ходят ' + str(board.current_player_color())
     label.config(text=config_string)
@@ -782,76 +789,24 @@ def prerare_and_start():
 def key(event):
     print("pressed", repr(event.char))
 
-
-# def callback(event):
-#     global board, x1, y1
-#     print("clicked at", event.x, event.y)
-#     x1 = event.x // 50
-#     y1 = event.y // 50
-#
-#
-# def on_mouse_release(event):
-#     global board, x2, y2
-#     print("back at", event.x, event.y)
-#     x2 = event.x // 50
-#     y2 = event.y // 50
-
-
-
 def get_boards_by_screen_coords(screen_x, screen_y):
     return screen_x // cell_size, screen_y // cell_size
 
 
 def on_mouse_press(event):
-    global board, draggable_object, prev_mouse_position, prev_figure_position
+    global prev_click_coords
     print("clicked at", event.x, event.y)
     board_row = event.y // cell_size
     board_col = event.x // cell_size
-    draggable_object = board.field[board_row][board_col]
-    print(type(draggable_object), 'drob')
-
-    if figure_board_coords == (board_col, board_row):
-        print('clicked on figure')
-        draggable_object = figure
-        prev_figure_position = canvas.coords(figure)
-        prev_mouse_position = (event.x, event.y)
-
-
-def on_mouse_move(event):
-    if draggable_object:
-        global prev_mouse_position
-        mouse_delta_x = event.x - prev_mouse_position[0]
-        mouse_delta_y = event.y - prev_mouse_position[1]
-        canvas.move(figure, mouse_delta_x, mouse_delta_y)
-        prev_mouse_position = (event.x, event.y)
-
+    prev_click_coords = (board_row, board_col)
+    print(prev_click_coords, ' on_mouse_press')
 
 def on_mouse_release(event):
-    global draggable_object, prev_mouse_position, figure_board_coords, prev_board_coords, new_board_coords, board
-
-    print('on_mouse_release')
-    if not draggable_object:
-        return
-    new_board_coords = get_boards_by_screen_coords(event.x, event.y)
-    prev_board_coords = get_boards_by_screen_coords(*prev_figure_position)
-    print(prev_board_coords, new_board_coords)
-
-    print(int(prev_board_coords[0]), int(prev_board_coords[1]), int(new_board_coords[0]), int(new_board_coords[1]))
-    if board.move_piece(int(prev_board_coords[0]), int(prev_board_coords[1]), int(new_board_coords[0]),
-                        int(new_board_coords[1])):
-        print('ok!')
-
-    draggable_object = None
-    prev_mouse_position = None
-
-
-# def main_move():
-#     global board
-#     x1, y1 = callback()
-#     x2, y2 = on_mouse_release()
-#     canvas.bind("<Button-1>", callback)
-#     canvas.bind("<ButtonRelease-1>", on_mouse_release)
-#     print(x1, y1)
+    global new_click_coords
+    board_row = event.y // cell_size
+    board_col = event.x // cell_size
+    new_click_coords = (board_row, board_col)
+    print(new_click_coords, 'on_mouse_release')
 
 bBishop_pic = tkinter.PhotoImage(file='blackBishop.png')
 bKing_pic = tkinter.PhotoImage(file='blackKing.png')
@@ -868,30 +823,36 @@ wRook_pic = tkinter.PhotoImage(file='whiteRook.png')
 
 restart = tkinter.Button(master, text='Начать сначала', command=prerare_and_start)
 board = Board()
+board.refresh()  # обновление положения картинок
 restart.pack()
 prerare_and_start()
+no_winner = True
+while no_winner:
 
-new_board_coords = None
-prev_board_coords = None
-figure_board_coords = (5, 1)
-figure_pic = tkinter.PhotoImage(file='blackBishop.png')
-figure = canvas.create_image((figure_board_coords[0] * cell_size, figure_board_coords[1] * cell_size), image=figure_pic,
-                             anchor='nw')
+    prev_click_coords = None
+    new_click_coords = None
 
-canvas.pack()
+    print(canvas.bind("<ButtonPress-1>", on_mouse_press))
+    print(prev_click_coords, 'нажали сюда')
+    # figure = board.field[prev_click_coords[0]][prev_click_coords[1]]
+    # print(canvas.bind("<B1-Motion>", on_mouse_move))
+    print(canvas.bind("<ButtonRelease-1>", on_mouse_release))
+    print(new_click_coords, 'отжали тут')
+    board.move_piece(prev_click_coords[0], prev_click_coords[1], new_click_coords[0], new_click_coords[1])
 
-draggable_object = None
-prev_figure_position = None
-prev_mouse_position = None
-
-print(canvas.bind("<ButtonPress-1>", on_mouse_press))
-print(canvas.bind("<B1-Motion>", on_mouse_move))
-print(canvas.bind("<ButtonRelease-1>", on_mouse_release))
-#on_mouse_release("<ButtonRelease-1>")
-print(prev_board_coords, new_board_coords)
-canvas.pack()
-master.bind("<KeyPress>", key_pressed)
-master.mainloop()
-
-
-
+    board.refresh()  # обновление положения картинок
+    master.mainloop()
+    bK = False
+    wK = False
+    for r in range(8):
+        for c in range(8):
+            if type(board.field[r][c]) == King and board.field[r][c].color == WHITE:
+                wK = True
+            elif type(board.field[r][c]) == King and board.field[r][c].color == BLACK:
+                bK = True
+    if not bK:
+        print('Белые победили!')
+        no_winner = False
+    elif not wK:
+        print('Чёрные победили!')
+        no_winner = False
