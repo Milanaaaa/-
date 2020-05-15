@@ -882,4 +882,3 @@ while no_winner:
         print('Чёрные победили!')
         no_winner = False
 master.mainloop()
-
